@@ -58,7 +58,7 @@ if uploaded_file is not None:
     st.write("Sending to Gemini...")
 
     # Initialize Gemini client
-    client = genai.Client(api_key=os.getenv("GEMINI_API_KEY"))
+   genai.configure(api_key=os.getenv("GEMINI_API_KEY"))
 
     prompt = f"""
 You are an accessibility remediation expert.
@@ -76,10 +76,6 @@ Content:
 {extracted_text}
 """
 
-    response = client.models.generate_content(
-        model="gemini-2.5-flash",
-        contents=prompt
-    )
-
+    response = genai.GenerativeModel("gemini-2.5-flash").generate_content(prompt)
     st.subheader("Generated HTML Output")
     st.code(response.text, language="html")
