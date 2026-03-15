@@ -57,8 +57,8 @@ if uploaded_file is not None:
 
     st.write("Sending to Gemini...")
 
-    # Initialize Gemini client
-   genai.configure(api_key=os.getenv("GEMINI_API_KEY"))
+        # Initialize Gemini client
+    genai.configure(api_key=os.getenv("GEMINI_API_KEY"))
 
     prompt = f"""
 You are an accessibility remediation expert.
