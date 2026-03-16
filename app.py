@@ -6,6 +6,9 @@ import pytesseract
 from pdf2image import convert_from_bytes
 import io
 
+# Configure Gemini (secure — uses Render environment variable)
+genai.configure(api_key=os.getenv("GEMINI_API_KEY"))
+
 st.title("PDF to Accessible HTML Remediation Tool")
 
 st.write(
@@ -18,47 +21,42 @@ if uploaded_file is not None:
 
     st.write("Extracting text...")
 
-    # Read PDF bytes ONCE
     pdf_bytes = uploaded_file.read()
-
-    # Use BytesIO so PyPDF2 can read it properly
     pdf_reader = PyPDF2.PdfReader(io.BytesIO(pdf_bytes))
 
     extracted_text = ""
 
-    # Try normal text extraction first
+    # First try normal text extraction
     for page in pdf_reader.pages:
         text = page.extract_text()
         if text:
             extracted_text += text + "\n"
 
-    # If no selectable text found → run OCR
+    # If no selectable text found → use OCR
     if not extracted_text.strip():
         st.write("No selectable text found. Running OCR...")
 
-        images = convert_from_bytes(pdf_bytes)
-        st.write(f"Number of images created: {len(images)}")
+        num_pages = len(pdf_reader.pages)
 
-        for i, img in enumerate(images):
-            st.write(f"Running OCR on page {i+1}...")
+        for page_number in range(num_pages):
+            st.write(f"Running OCR on page {page_number + 1}...")
+
+            images = convert_from_bytes(
+                pdf_bytes,
+                first_page=page_number + 1,
+                last_page=page_number + 1,
+                dpi=150  # Lower DPI for better speed on free tier
+            )
+
+            img = images[0]
             ocr_text = pytesseract.image_to_string(img)
-            st.write(f"OCR text length (page {i+1}): {len(ocr_text)}")
             extracted_text += ocr_text + "\n"
 
-    # Show debugging information
-    st.write(f"Total extracted text length: {len(extracted_text)}")
-    st.write("Preview of extracted text:")
-    st.text(extracted_text[:500])
-
-    # If still empty → stop
     if not extracted_text.strip():
         st.error("OCR did not extract any readable text.")
         st.stop()
 
     st.write("Sending to Gemini...")
-
-        # Initialize Gemini client
-    genai.configure(api_key=os.getenv("GEMINI_API_KEY"))
 
     prompt = f"""
 You are an accessibility remediation expert.
@@ -76,6 +74,8 @@ Content:
 {extracted_text}
 """
 
-    response = genai.GenerativeModel("gemini-2.5-flash").generate_content(prompt)
+    model = genai.GenerativeModel("gemini-2.5-flash")
+    response = model.generate_content(prompt)
+
     st.subheader("Generated HTML Output")
     st.code(response.text, language="html")
